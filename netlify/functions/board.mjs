@@ -81,6 +81,21 @@ export default async (req) => {
       break;
     }
 
+    case "updateShout": {
+      const s = b.shouts.find((x) => x.id === p.id);
+      if (!s) return json({ error: "not_found" }, 404);
+      const name = str(p.name, 80);
+      if (!name) return json({ error: "bad_request" }, 400);
+      const newPhoto = typeof p.photo === "string" && /^[a-f0-9]{10,40}$/.test(p.photo) ? p.photo : null;
+      if (s.photo && s.photo !== newPhoto) await photos.delete(s.photo);
+      s.name = name;
+      s.type = TYPES.includes(p.type) ? p.type : "other";
+      s.detail = str(p.detail, 160);
+      s.photo = newPhoto;
+      s.updatedAt = new Date().toISOString();
+      break;
+    }
+
     case "deleteShout": {
       const s = b.shouts.find((x) => x.id === p.id);
       b.shouts = b.shouts.filter((x) => x.id !== p.id);
