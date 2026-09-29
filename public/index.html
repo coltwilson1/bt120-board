@@ -151,7 +151,12 @@ table.lead{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums
 .chip{border:2px solid var(--e-line);background:#fff;color:var(--e-ink);font-size:18px;font-weight:700;padding:12px 18px}
 .chip[aria-pressed="true"]{background:var(--orange);color:var(--e-ink);border-color:var(--orange)}
 .photo-pick{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-.photo-pick img{width:96px;height:96px;object-fit:cover;border:2px solid var(--e-line)}
+.photo-pick img{width:96px;height:120px;object-fit:cover;object-position:50% 22%;border:2px solid var(--e-line)}
+.photo-spec{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.photo-spec span{background:var(--yellow-soft);border:1px solid var(--e-line);padding:6px 10px;font-size:15px;font-weight:600}
+.photo-note{font-size:15px;font-weight:600;margin:10px 0 0;color:var(--e-muted)}
+.photo-note.warn{color:#9a3b00}
+a.btn{display:inline-flex;align-items:center;text-decoration:none}
 .shout-list{display:flex;flex-direction:column;gap:10px}
 .shout{display:flex;gap:14px;align-items:center;border:2px solid var(--e-line);padding:10px;flex-wrap:wrap}
 .shout img,.shout .m{width:60px;height:60px;object-fit:cover;flex:none;background:var(--yellow);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:26px}
@@ -250,13 +255,22 @@ img{max-width:100%}
       </div>
       <div id="photoRow">
         <span class="big-label">Headshot photo (optional)</span>
-        <p class="e-help" style="margin:0 0 8px">A headshot works best. It fills the whole left side of the TV.</p>
+        <p class="e-help" style="margin:0 0 8px">The headshot fills the whole left side of the TV.</p>
+        <div class="photo-spec" aria-label="Photo requirements">
+          <span>Tall (portrait) photo</span>
+          <span>At least 900 × 1100 pixels</span>
+          <span>Face near the top, centered</span>
+          <span>JPG or PNG</span>
+        </div>
         <div class="photo-pick">
           <img id="shPreview" alt="" hidden>
           <label class="btn ghost small" for="shPhoto" style="display:inline-flex;align-items:center">Choose a photo</label>
+          <a class="btn ghost small" href="https://drive.google.com/drive/folders/1XZ0bjGmFjUwMv2yVHfWMGkOoByKBYiHA?usp=sharing" target="_blank" rel="noopener">Find headshot on Google Drive ↗</a>
           <input type="file" id="shPhoto" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
           <button class="btn ghost small" id="shPhotoClear" type="button" hidden>Remove photo</button>
         </div>
+        <p class="e-help" style="margin:10px 0 0;font-size:15px">From Google Drive: open the agent's headshot, click <b>Download</b>, then come back here and click <b>Choose a photo</b>. It will be in your Downloads folder.</p>
+        <p class="photo-note" id="photoNote" role="status" hidden></p>
       </div>
       <div><button class="btn" id="shAdd" type="button" style="font-size:20px;padding:16px 28px">Put it on the TV</button></div>
       <div>
@@ -575,9 +589,20 @@ $("shType").addEventListener("click", e=>{
 $("shPhoto").addEventListener("change", e=>{
   const f = e.target.files && e.target.files[0]; if (!f) return;
   if (f.size > 19*1024*1024){ toast("That photo is too big. Please pick a smaller one."); return; }
-  shFile = f; $("shPreview").src = URL.createObjectURL(f); $("shPreview").hidden=false; $("shPhotoClear").hidden=false;
+  shFile = f; const url = URL.createObjectURL(f);
+  $("shPreview").src = url; $("shPreview").hidden=false; $("shPhotoClear").hidden=false;
+  const img = new Image();
+  img.onload = () => {
+    const note = $("photoNote"); const w = img.naturalWidth, h = img.naturalHeight;
+    let msg = `This photo is ${w} × ${h} pixels. `, warn = false;
+    if (w < 900 || h < 1100){ msg += "It's on the small side and may look blurry on the TV. A bigger photo will look sharper."; warn = true; }
+    else if (w > h){ msg += "It's wider than it is tall, so the sides will be cut off on the TV. A tall photo works best."; warn = true; }
+    else msg += "Great size for the TV.";
+    note.textContent = msg; note.className = "photo-note" + (warn ? " warn" : ""); note.hidden = false;
+  };
+  img.src = url;
 });
-$("shPhotoClear").onclick = ()=>{ shFile=null; $("shPhoto").value=""; $("shPreview").hidden=true; $("shPhotoClear").hidden=true; };
+$("shPhotoClear").onclick = ()=>{ shFile=null; $("shPhoto").value=""; $("shPreview").hidden=true; $("shPhotoClear").hidden=true; $("photoNote").hidden=true; };
 
 async function shrink(file){
   // resize big phone photos so the TV loads them fast
