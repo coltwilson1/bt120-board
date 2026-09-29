@@ -152,6 +152,9 @@ table.lead{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums
 .chip[aria-pressed="true"]{background:var(--orange);color:var(--e-ink);border-color:var(--orange)}
 .photo-pick{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 .photo-pick img{width:96px;height:120px;object-fit:cover;object-position:50% 22%;border:2px solid var(--e-line)}
+.edit-banner{background:var(--yellow);border:2px solid var(--e-ink);padding:12px 14px;font-size:18px;font-weight:700;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.shout.editing{border-color:var(--orange);background:var(--yellow-soft)}
+.shout .acts{display:flex;gap:8px;flex-wrap:wrap}
 .photo-spec{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
 .photo-spec span{background:var(--yellow-soft);border:1px solid var(--e-line);padding:6px 10px;font-size:15px;font-weight:600}
 .photo-note{font-size:15px;font-weight:600;margin:10px 0 0;color:var(--e-muted)}
@@ -233,8 +236,9 @@ img{max-width:100%}
     </section>
 
     <section class="e-sec">
-      <h2><span class="step">2</span>Celebrate someone</h2>
-      <p class="e-help">Fill this in and press the big orange button. Their congratulations slide will start rotating on the TV.</p>
+      <h2 id="shHeading"><span class="step">2</span>Celebrate someone</h2>
+      <p class="e-help" id="shHelp">Fill this in and press the big orange button. Their congratulations slide will start rotating on the TV.</p>
+      <div class="edit-banner" id="editBanner" hidden><span id="editBannerText">Editing a slide</span><button class="btn ghost small" id="shCancel2" type="button" style="background:#fff">Cancel editing</button></div>
       <div>
         <label class="big-label" for="shName">Who are we celebrating?</label>
         <input class="txt" id="shName" list="agentNames" placeholder="Agent's name" autocomplete="off">
@@ -272,7 +276,7 @@ img{max-width:100%}
         <p class="e-help" style="margin:10px 0 0;font-size:15px">From Google Drive: open the agent's headshot, click <b>Download</b>, then come back here and click <b>Choose a photo</b>. It will be in your Downloads folder.</p>
         <p class="photo-note" id="photoNote" role="status" hidden></p>
       </div>
-      <div><button class="btn" id="shAdd" type="button" style="font-size:20px;padding:16px 28px">Put it on the TV</button></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="shAdd" type="button" style="font-size:20px;padding:16px 28px">Put it on the TV</button><button class="btn ghost" id="shCancel" type="button" hidden>Cancel</button></div>
       <div>
         <span class="big-label">Showing on the TV now</span>
         <div class="shout-list" id="shoutList"></div>
@@ -581,10 +585,38 @@ $("newAgent").addEventListener("keydown", e=>{ if(e.key==="Enter") $("addAgent")
 
 /* celebrations */
 let shType = "closed", shFile = null;
+let editingId = null, keepPhoto = null; // when editing: the slide's id and its current photo (null = no photo)
+function setType(v){
+  shType = TYPES[v] ? v : "other";
+  $("shType").querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed", c.dataset.v===shType ? "true":"false"));
+}
+function resetShoutForm(){
+  editingId = null; keepPhoto = null;
+  $("shName").value=""; $("shDetail").value=""; setType("closed");
+  shFile=null; $("shPhoto").value=""; $("shPreview").hidden=true; $("shPhotoClear").hidden=true; $("photoNote").hidden=true;
+  $("editBanner").hidden = true; $("shCancel").hidden = true;
+  $("shAdd").textContent = "Put it on the TV";
+  $("shHelp").hidden = false;
+  renderShouts();
+}
+function startEdit(id){
+  const s = shouts.find(x=>x.id===id); if (!s) return;
+  editingId = id; keepPhoto = s.photo || null;
+  $("shName").value = s.name || ""; $("shDetail").value = s.detail || ""; setType(s.type);
+  shFile = null; $("shPhoto").value = ""; $("photoNote").hidden = true;
+  if (keepPhoto){ $("shPreview").src = "/api/photo?id="+encodeURIComponent(keepPhoto); $("shPreview").hidden=false; $("shPhotoClear").hidden=false; }
+  else { $("shPreview").hidden=true; $("shPhotoClear").hidden=true; }
+  $("editBannerText").textContent = "Editing " + (s.name || "this slide") + "'s slide. Make your changes, then press Save changes.";
+  $("editBanner").hidden = false; $("shCancel").hidden = false; $("shHelp").hidden = true;
+  $("shAdd").textContent = "Save changes";
+  renderShouts();
+  $("shHeading").scrollIntoView({behavior:"smooth", block:"start"});
+}
+$("shCancel").onclick = resetShoutForm;
+$("shCancel2").onclick = resetShoutForm;
 $("shType").addEventListener("click", e=>{
   const b = e.target.closest(".chip"); if (!b) return;
-  shType = b.dataset.v;
-  $("shType").querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed", c===b ? "true":"false"));
+  setType(b.dataset.v);
 });
 $("shPhoto").addEventListener("change", e=>{
   const f = e.target.files && e.target.files[0]; if (!f) return;
@@ -602,7 +634,7 @@ $("shPhoto").addEventListener("change", e=>{
   };
   img.src = url;
 });
-$("shPhotoClear").onclick = ()=>{ shFile=null; $("shPhoto").value=""; $("shPreview").hidden=true; $("shPhotoClear").hidden=true; $("photoNote").hidden=true; };
+$("shPhotoClear").onclick = ()=>{ shFile=null; keepPhoto=null; $("shPhoto").value=""; $("shPreview").hidden=true; $("shPhotoClear").hidden=true; $("photoNote").hidden=true; };
 
 async function shrink(file){
   // resize big phone photos so the TV loads them fast
@@ -618,27 +650,32 @@ async function shrink(file){
 $("shAdd").onclick = async ()=>{
   const name = $("shName").value.trim();
   if (!name){ toast("Type who we're celebrating first."); $("shName").focus(); return; }
-  const btn = $("shAdd"); btn.disabled = true; btn.textContent = "Adding…";
-  let photo = null;
+  const editing = editingId;
+  const btn = $("shAdd"); btn.disabled = true; btn.textContent = editing ? "Saving…" : "Adding…";
+  let photo = editing ? keepPhoto : null;
   if (shFile){
     try {
       const img = await shrink(shFile);
       const r = await fetch("/api/photo", {method:"POST", headers:{"content-type": img.type || "image/jpeg", "x-board-pin": PIN}, body: img});
       if (!r.ok) throw new Error("upload");
       photo = (await r.json()).id;
-    } catch(e){ toast("The photo didn't upload, so the slide will use their initials."); }
+    } catch(e){ toast(editing ? "The new photo didn't upload, so the slide keeps its old one." : "The photo didn't upload, so the slide will use their initials."); }
   }
-  const ok = await save("addShout", {name, type:shType, detail:$("shDetail").value.trim(), photo});
-  btn.disabled = false; btn.textContent = "Put it on the TV";
-  if (ok){ $("shName").value=""; $("shDetail").value=""; $("shPhotoClear").click(); toast("Done! "+name+"'s slide is on the TV."); }
+  const detail = $("shDetail").value.trim();
+  const ok = editing
+    ? await save("updateShout", {id: editing, name, type: shType, detail, photo})
+    : await save("addShout", {name, type: shType, detail, photo});
+  btn.disabled = false;
+  if (ok){ resetShoutForm(); toast(editing ? "Saved! "+name+"'s slide is updated on the TV." : "Done! "+name+"'s slide is on the TV."); }
+  else btn.textContent = editing ? "Save changes" : "Put it on the TV";
 };
 
 function renderShouts(){
   $("shoutList").innerHTML = shouts.length ? shouts.map(s=>`
-    <div class="shout" data-id="${esc(s.id)}">
+    <div class="shout ${s.id===editingId?"editing":""}" data-id="${esc(s.id)}">
       ${s.photo?`<img src="/api/photo?id=${esc(s.photo)}" alt="">`:`<div class="m">${esc(initials(s.name))}</div>`}
       <div class="t"><b>${esc(s.name)} — ${(TYPES[s.type]||TYPES.other).eyebrow}</b><span>${esc(s.detail||"")}</span></div>
-      <button class="btn ghost small" type="button" data-act="rm">Take off TV</button>
+      <div class="acts"><button class="btn small" type="button" data-act="edit">Edit</button><button class="btn ghost small" type="button" data-act="rm">Take off TV</button></div>
       <div class="confirm" data-confirm hidden style="width:100%">Take this slide off the TV?
         <button class="btn small" type="button" data-act="rmYes">Yes</button>
         <button class="btn ghost small" type="button" data-act="rmNo">Cancel</button></div>
@@ -647,10 +684,11 @@ function renderShouts(){
 $("shoutList").addEventListener("click", async e=>{
   const b = e.target.closest("button"); if (!b) return;
   const row = b.closest(".shout"), id = row.dataset.id;
-  if (b.dataset.act==="rm") row.querySelector("[data-confirm]").hidden=false;
+  if (b.dataset.act==="edit") startEdit(id);
+  else if (b.dataset.act==="rm") row.querySelector("[data-confirm]").hidden=false;
   else if (b.dataset.act==="rmNo") row.querySelector("[data-confirm]").hidden=true;
   else if (b.dataset.act==="rmYes"){
-    if (await save("deleteShout",{id})) toast("Slide removed");
+    if (await save("deleteShout",{id})){ toast("Slide removed"); if (editingId===id) resetShoutForm(); }
   }
 });
 
