@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: TV scoreboard — header strip, left = team totals + agent leaderboard, right = rotating celebration slide. Editor is a separate light, big-control screen. */
+/* Layout: TV = full-screen rotating scenes (scoreboard, celebrations, leaders). Editor = separate light, big-control screen. */
 :root{
   color-scheme: light;
   --ground:#ffffff; --panel:#fff8ee; --panel-2:#ffe7c7; --line:#f3dcc0;
@@ -16,7 +16,7 @@
   --orange:#f26b1d; --orange-deep:#d8520a; --yellow:#ffc21a; --yellow-soft:#fff1c2;
   --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
   --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --row:1; --u:min(1vw,1.7778vh); /* 1% of a 16:9 frame that always fits the screen */
+  --row:1; --u:min(1vw,1.7778vh); /* type scale unit; layout itself always fills the screen */
   /* editor */
   --e-bg:#fffaf3; --e-card:#ffffff; --e-ink:#111111; --e-muted:#5b5249; --e-line:#f0dcc3; --e-red:#f26b1d; --e-ok:#1d7a4d;
 }
@@ -27,76 +27,95 @@ button{font:inherit;cursor:pointer}
 :focus-visible{outline:3px solid var(--orange);outline-offset:2px}
 
 /* ---------------- TV ---------------- */
-#tv{width:calc(100*var(--u));height:calc(56.25*var(--u));margin:auto;flex:none;display:grid;grid-template-rows:auto auto 1fr;gap:calc(1.2*var(--u));padding-block:calc(1.4*var(--u));padding-inline:calc(2*var(--u));overflow:hidden;background:var(--ground)}
-body:has(#tv:not([hidden])){display:flex;align-items:center;min-height:100%;background:#111}
-.tv-head{display:flex;align-items:center;gap:calc(1.4*var(--u));border-bottom:calc(.35*var(--u)) solid var(--orange);padding-bottom:calc(.9*var(--u))}
-.mark{background:var(--yellow);color:var(--ink);box-shadow:calc(.5*var(--u)) calc(.5*var(--u)) 0 var(--orange);font-family:var(--display);font-weight:800;font-size:calc(2.4*var(--u));line-height:1;padding:.25em .4em;letter-spacing:.02em}
-.tv-title{font-family:var(--display);font-weight:700;font-size:calc(2.6*var(--u));line-height:1;text-transform:uppercase;letter-spacing:.03em;text-wrap:balance}
-.tv-sub{color:var(--muted);font-size:calc(1.05*var(--u));margin-top:.3em;font-weight:500}
-.tv-clock{margin-left:auto;text-align:right;font-family:var(--display);font-weight:600;font-size:calc(2.2*var(--u));font-variant-numeric:tabular-nums;line-height:1}
-.tv-clock small{display:block;font-family:var(--body);font-size:.42em;color:var(--muted);font-weight:500;margin-top:.35em}
+/* The TV rotates full-screen scenes: scoreboard -> each celebration -> weekly leaders. Sizes use --u (1% of a 16:9 frame) so text scales with the TV. */
+body:has(#tv:not([hidden])){overflow:hidden}
+#tv{position:fixed;inset:0;overflow:hidden;background:var(--ground)}
+.scene{position:absolute;inset:0;opacity:0;visibility:hidden;transition:opacity .6s ease,visibility 0s linear .6s}
+.scene.on{opacity:1;visibility:visible;transition:opacity .6s ease}
 
-.tv-main{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);gap:calc(1.6*var(--u));min-height:0}
-.left{display:grid;grid-template-rows:auto 1fr;gap:calc(1.4*var(--u));min-width:0;min-height:0}
+/* scoreboard scene */
+.scene-board{display:grid;grid-template-rows:auto auto 1fr;gap:calc(1.4*var(--u));padding:calc(1.6*var(--u)) calc(2.2*var(--u)) calc(2.4*var(--u))}
+.tv-head{display:flex;align-items:center;gap:calc(1.6*var(--u));border-bottom:calc(.45*var(--u)) solid var(--orange);padding-bottom:calc(1.1*var(--u))}
+.mark{background:var(--yellow);color:var(--ink);box-shadow:calc(.5*var(--u)) calc(.5*var(--u)) 0 var(--orange);font-family:var(--display);font-weight:800;font-size:calc(3*var(--u));line-height:1;padding:.22em .4em;letter-spacing:.02em}
+.tv-title{font-family:var(--display);font-weight:800;font-size:calc(3.6*var(--u));line-height:.95;text-transform:uppercase;letter-spacing:.02em}
+.tv-sub{color:var(--muted);font-size:calc(1.4*var(--u));margin-top:.25em;font-weight:600}
+.tv-clock{margin-left:auto;text-align:right;font-family:var(--display);font-weight:700;font-size:calc(3.2*var(--u));font-variant-numeric:tabular-nums;line-height:1}
+.tv-clock small{display:block;font-family:var(--body);font-size:.4em;color:var(--muted);font-weight:600;margin-top:.35em}
 
-.totals{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:calc(.8*var(--u))}
-.tile{background:var(--panel);padding:calc(1*var(--u)) calc(1.1*var(--u)) calc(.9*var(--u));display:flex;flex-direction:column;gap:calc(.35*var(--u));border-top:calc(.4*var(--u)) solid var(--orange)}
-.tile.hot{background:var(--yellow-soft)}
-.tile.gold{border-top-color:var(--yellow);background:var(--yellow-soft)}
-.tile .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:calc(.8*var(--u));text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
-.tile .num{font-family:var(--display);font-weight:800;font-size:calc(3.9*var(--u));line-height:.9;font-variant-numeric:tabular-nums}
-.tile .goal{margin-top:auto;font-size:calc(.9*var(--u));color:var(--muted);font-variant-numeric:tabular-nums}
-.bar{height:calc(.5*var(--u));background:var(--panel-2);overflow:hidden}
-.bar i{display:block;height:100%;background:var(--orange);transition:width .8s ease}
-.tile.gold .bar i{background:var(--yellow)}
+.totals{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:calc(1*var(--u))}
+.tile{padding:calc(1.1*var(--u)) calc(1.3*var(--u)) calc(1*var(--u));display:flex;flex-direction:column;gap:calc(.4*var(--u));background:var(--orange);color:var(--ink);min-width:0}
+.tile:nth-child(even){background:var(--yellow)}
+.tile.closings{background:var(--ink);color:var(--yellow)}
+.tile .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:calc(1.05*var(--u));text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+.tile .num{font-family:var(--display);font-weight:800;font-size:calc(6.2*var(--u));line-height:.85;font-variant-numeric:tabular-nums}
+.tile .goal{margin-top:auto;font-size:calc(1*var(--u));font-weight:600;font-variant-numeric:tabular-nums;opacity:.85}
+.bar{height:calc(.6*var(--u));background:rgba(17,17,17,.18);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ink);transition:width .8s ease}
+.tile.closings .bar{background:rgba(255,194,26,.25)}
+.tile.closings .bar i{background:var(--yellow)}
 
-.board{background:var(--ground);border:calc(.12*var(--u)) solid var(--line);display:flex;flex-direction:column;min-height:0;overflow:hidden}
-.board-head{display:flex;justify-content:space-between;align-items:baseline;padding:calc(.9*var(--u)) calc(1.2*var(--u)) calc(.6*var(--u));gap:calc(1*var(--u))}
-.board-head h2{margin:0;font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:calc(1.5*var(--u))}
-.board-head span{color:var(--muted);font-size:calc(.9*var(--u))}
-.tbl-wrap{overflow:auto;min-height:0;flex:1}
+.board{display:flex;flex-direction:column;min-height:0;overflow:hidden;border:calc(.15*var(--u)) solid var(--line)}
+.tbl-wrap{overflow:hidden;min-height:0;flex:1}
 table.lead{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-.lead th{font-size:calc(.85*var(--u));text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:600;text-align:right;padding:calc(.5*var(--u)) calc(1.2*var(--u));border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--ground)}
+.lead th{font-size:calc(1.15*var(--u));text-transform:uppercase;letter-spacing:.08em;font-weight:800;text-align:right;padding:calc(.8*var(--u)) calc(1.4*var(--u));background:var(--ink);color:var(--yellow)}
 .lead th:first-child,.lead td:first-child{text-align:left}
+.lead td{padding:calc(.7*var(--u) * var(--row)) calc(1.4*var(--u));border-bottom:calc(.1*var(--u)) solid var(--line);text-align:right;font-family:var(--display);font-weight:700;font-size:calc(2.4*var(--u) * var(--row))}
 .lead tr:nth-child(even) td{background:var(--panel)}
-.lead td{padding:calc(calc(.55*var(--u)) * var(--row)) calc(1.2*var(--u));border-bottom:1px solid var(--line);text-align:right;font-size:calc(calc(1.35*var(--u)) * var(--row))}
-.lead td.name{font-weight:600}
-.lead td.name .rk{display:inline-block;width:1.8em;color:var(--muted);font-family:var(--display);font-weight:700}
-.lead tr.first td{background:var(--yellow-soft)}
-.lead tr.first td.name .rk{color:var(--orange-deep)}
-.lead td.big{font-family:var(--display);font-weight:700;font-size:calc(calc(1.7*var(--u)) * var(--row))}
-.lead td.zero{color:#b9ada0}
+.lead td.name{font-family:var(--body);font-weight:700;font-size:calc(1.9*var(--u) * var(--row))}
+.lead td.name .rk{display:inline-block;width:1.9em;color:var(--orange-deep);font-family:var(--display);font-weight:800}
+.lead tr.first td{background:var(--yellow)!important}
+.lead tr.first td.name .rk{color:var(--ink)}
+.lead td.zero{color:#c4b6a6}
 .lead td.closings{color:var(--orange-deep)}
-.empty{padding:calc(2*var(--u)) calc(1.2*var(--u));color:var(--muted);font-size:calc(1.3*var(--u));line-height:1.4}
+.lead tr.first td.closings{color:var(--ink)}
+.empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:calc(1*var(--u));padding:calc(2*var(--u));background:var(--panel)}
+.empty b{font-family:var(--display);font-weight:800;font-size:calc(4*var(--u));text-transform:uppercase;line-height:1}
+.empty span{font-size:calc(1.6*var(--u));color:var(--muted);max-width:50ch}
 
-/* Celebration slide */
-.stage{position:relative;background:linear-gradient(160deg,var(--yellow) 0%,#ffb020 55%,var(--orange) 100%);color:var(--ink);overflow:hidden;display:flex;flex-direction:column}
-.stage canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-.slide{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;transition:opacity .9s ease;padding:calc(1.6*var(--u))}
-.slide.on{opacity:1}
-.slide .eyebrow{font-family:var(--display);font-weight:800;font-size:calc(3*var(--u));text-transform:uppercase;letter-spacing:.04em;line-height:1;color:var(--ink)}
-.slide .eyebrow.red{color:var(--ink)}
-.slide .photo{flex:1;min-height:0;margin:calc(1.2*var(--u)) 0;display:flex;align-items:center;justify-content:center}
-.slide .photo img{max-width:100%;max-height:100%;object-fit:cover;aspect-ratio:1/1;width:auto;height:100%;border:calc(.4*var(--u)) solid #fff;box-shadow:0 calc(.6*var(--u)) calc(1.6*var(--u)) rgba(120,50,0,.25)}
-.mono{height:100%;max-height:calc(22*var(--u));aspect-ratio:1/1;max-width:100%;border-radius:50%;background:var(--ink);color:var(--yellow);border:calc(.4*var(--u)) solid #fff;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:calc(8*var(--u));}
-.slide .who{font-family:var(--display);font-weight:800;font-size:calc(3.6*var(--u));line-height:.95;text-transform:uppercase;text-wrap:balance}
-.slide .what{font-size:calc(1.5*var(--u));color:#2a1a0a;margin-top:calc(.5*var(--u));line-height:1.3;text-wrap:balance}
-.slide .congrats{margin-top:calc(.8*var(--u));font-size:calc(1*var(--u));letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--ink);opacity:.75}
-.leaders{display:grid;gap:calc(1*var(--u));margin-top:calc(1.4*var(--u));flex:1;align-content:center}
-.leaders div{display:flex;justify-content:space-between;align-items:baseline;border-bottom:calc(.15*var(--u)) solid rgba(17,17,17,.25);padding-bottom:calc(.7*var(--u));gap:calc(1*var(--u))}
-.leaders b{font-size:calc(1*var(--u));text-transform:uppercase;letter-spacing:.1em;color:#3a2410;font-weight:700}
-.leaders span{font-family:var(--display);font-weight:700;font-size:calc(2.2*var(--u));text-align:right}
-.leaders em{font-style:normal;background:var(--ink);color:var(--yellow);padding:0 .3em;margin-left:.3em}
-.dots{position:absolute;top:calc(1.6*var(--u));right:calc(1.6*var(--u));display:flex;gap:calc(.4*var(--u));z-index:2}
-.dots i{width:calc(.6*var(--u));height:calc(.6*var(--u));background:rgba(17,17,17,.25)}
-.dots i.on{background:var(--ink)}
+/* celebration scene */
+.cele{position:absolute;inset:0;display:grid;grid-template-columns:46% 1fr;background:linear-gradient(125deg,var(--yellow) 0%,#ffb21f 45%,var(--orange) 100%);overflow:hidden}
+.cele::before{content:"";position:absolute;right:-30%;top:50%;width:140vmax;height:140vmax;translate:0 -50%;background:repeating-conic-gradient(from 0deg,rgba(255,255,255,.16) 0deg 7deg,transparent 7deg 18deg);border-radius:50%;animation:spin 90s linear infinite;pointer-events:none}
+@keyframes spin{to{rotate:360deg}}
+.cele-photo{position:relative;z-index:1;overflow:hidden;background:var(--ink);clip-path:polygon(0 0,100% 0,84% 100%,0 100%)}
+.cele-photo img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;object-position:50% 22%}
+.cele-mono{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:calc(22*var(--u));color:var(--yellow);padding-right:8%}
+.cele-copy{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;padding:calc(4*var(--u)) calc(4.5*var(--u)) calc(4*var(--u)) calc(2.5*var(--u));gap:calc(1*var(--u));min-width:0}
+.cele-kicker{align-self:flex-start;background:var(--ink);color:var(--yellow);font-weight:800;text-transform:uppercase;letter-spacing:.18em;font-size:calc(1.5*var(--u));padding:.45em .9em}
+.cele-eyebrow{font-family:var(--display);font-weight:800;text-transform:uppercase;font-size:calc(9.5*var(--u));line-height:.86;color:#fff;text-shadow:calc(.45*var(--u)) calc(.45*var(--u)) 0 var(--ink);letter-spacing:.01em}
+.cele-name{font-family:var(--display);font-weight:800;text-transform:uppercase;font-size:calc(7.4*var(--u));line-height:.9;color:var(--ink);text-wrap:balance;overflow-wrap:anywhere}
+.cele-detail{font-size:calc(2.6*var(--u));font-weight:600;color:#2a1706;line-height:1.25;text-wrap:balance}
+.cele-foot{margin-top:calc(1.6*var(--u));display:flex;align-items:center;gap:calc(1*var(--u));font-weight:800;text-transform:uppercase;letter-spacing:.14em;font-size:calc(1.2*var(--u))}
+.cele-foot .mark{font-size:calc(1.9*var(--u));box-shadow:calc(.35*var(--u)) calc(.35*var(--u)) 0 var(--ink)}
 
-.tv-tools{position:fixed;right:calc(1*var(--u));bottom:calc(calc(1*var(--u)) + env(safe-area-inset-bottom,0px));display:flex;gap:8px;transition:opacity .6s;z-index:5}
+/* weekly leaders scene */
+.lead-scene{position:absolute;inset:0;background:var(--ink);color:#fff;display:flex;flex-direction:column;padding:calc(3.5*var(--u)) calc(5*var(--u));gap:calc(2*var(--u))}
+.lead-scene h2{margin:0;font-family:var(--display);font-weight:800;text-transform:uppercase;font-size:calc(7*var(--u));line-height:.9;color:var(--yellow)}
+.lead-scene h2 small{display:block;font-family:var(--body);font-size:calc(1.5*var(--u));letter-spacing:.16em;color:var(--orange);margin-bottom:.8em}
+.lead-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:calc(1.4*var(--u))}
+.lead-card{background:#1d1d1d;border-left:calc(.7*var(--u)) solid var(--orange);padding:calc(1.8*var(--u)) calc(2.2*var(--u));display:flex;flex-direction:column;justify-content:center;gap:calc(.6*var(--u));min-width:0}
+.lead-card:nth-child(4){border-left-color:var(--yellow)}
+.lead-card b{text-transform:uppercase;letter-spacing:.12em;font-size:calc(1.4*var(--u));color:#cbbfb2}
+.lead-card .who{font-family:var(--display);font-weight:800;font-size:calc(4.6*var(--u));line-height:.95;text-transform:uppercase;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-wrap:balance}
+.lead-card .val{font-family:var(--display);font-weight:800;font-size:calc(3.2*var(--u));color:var(--yellow)}
+
+/* entrance motion for celebrations */
+.enter .cele-photo{animation:inL .9s cubic-bezier(.2,.8,.2,1) both}
+.enter .cele-kicker{animation:up .6s .25s both}
+.enter .cele-eyebrow{animation:pop .7s .35s cubic-bezier(.2,1.4,.4,1) both}
+.enter .cele-name{animation:up .7s .55s both}
+.enter .cele-detail,.enter .cele-foot{animation:up .7s .7s both}
+@keyframes inL{from{transform:translateX(-12%);opacity:0}to{transform:none;opacity:1}}
+@keyframes up{from{transform:translateY(calc(3*var(--u)));opacity:0}to{transform:none;opacity:1}}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+
+#confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:6}
+.progress{position:absolute;left:0;bottom:0;height:calc(.5*var(--u));width:100%;z-index:7;background:rgba(17,17,17,.08)}
+.progress i{display:block;height:100%;width:0;background:var(--orange-deep)}
+.notice{position:absolute;top:calc(1*var(--u));left:50%;translate:-50% 0;z-index:8;background:var(--ink);color:var(--yellow);padding:10px 16px;font-size:calc(1.3*var(--u));font-weight:600}
+.tv-tools{position:fixed;right:calc(1*var(--u));bottom:calc(1.4*var(--u));display:flex;gap:8px;transition:opacity .6s;z-index:9}
 .tv-tools.idle{opacity:0;pointer-events:none}
-.tv-tools button{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);padding:10px 16px;font-weight:600;font-size:15px}
-.tv-tools button.primary{background:var(--orange);border-color:var(--orange);color:var(--ink)}
-.notice{background:var(--yellow-soft);color:var(--ink);padding:10px 14px;font-size:15px}
-
+.tv-tools button{background:var(--ink);color:var(--yellow);border:0;padding:10px 16px;font-weight:700;font-size:15px}
+@media (prefers-reduced-motion:reduce){.scene,.bar i{transition:none}.cele::before{animation:none}.enter *{animation:none!important}}
 
 /* ---------------- EDITOR ---------------- */
 #editor{background:var(--e-bg);color:var(--e-ink);min-height:100%;color-scheme:light;padding-inline:16px;padding-block:0 80px}
@@ -152,29 +171,22 @@ img{max-width:100%}
 
 <!-- ============ TV SCREEN ============ -->
 <div id="tv">
-  <header class="tv-head">
-    <div class="mark">BT120</div>
-    <div>
-      <div class="tv-title" id="tvTitle">Breakthrough 120</div>
-      <div class="tv-sub" id="tvSub">Coaching Scoreboard</div>
-    </div>
-    <div class="tv-clock"><span id="clock">--:--</span><small id="date"></small></div>
-  </header>
-  <div id="tvNotice" class="notice" hidden></div>
-  <main class="tv-main">
-    <section class="left">
-      <div class="totals" id="totals"></div>
-      <div class="board">
-        <div class="board-head"><h2>Agent Leaderboard</h2><span id="boardNote">Ranked by closings, then under contract</span></div>
-        <div class="tbl-wrap" id="leadWrap"></div>
+  <section class="scene scene-board on" id="sceneBoard">
+    <header class="tv-head">
+      <div class="mark">BT120</div>
+      <div>
+        <div class="tv-title" id="tvTitle">Breakthrough 120</div>
+        <div class="tv-sub" id="tvSub">Coaching Scoreboard</div>
       </div>
-    </section>
-    <section class="stage" id="stage" aria-live="polite">
-      <canvas id="confetti"></canvas>
-      <div id="slides"></div>
-      <div class="dots" id="dots"></div>
-    </section>
-  </main>
+      <div class="tv-clock"><span id="clock">--:--</span><small id="date"></small></div>
+    </header>
+    <div class="totals" id="totals"></div>
+    <div class="board"><div class="tbl-wrap" id="leadWrap"></div></div>
+  </section>
+  <section class="scene" id="sceneCele" aria-live="polite"></section>
+  <canvas id="confetti"></canvas>
+  <div class="progress"><i id="prog"></i></div>
+  <div id="tvNotice" class="notice" hidden></div>
   <div class="tv-tools" id="tvTools">
     <button id="fsBtn" type="button">Full screen</button>
   </div>
@@ -237,7 +249,8 @@ img{max-width:100%}
         <input class="txt" id="shDetail" placeholder="Example: 142 Oak Street — first-time buyers!" autocomplete="off">
       </div>
       <div id="photoRow">
-        <span class="big-label">Photo (optional)</span>
+        <span class="big-label">Headshot photo (optional)</span>
+        <p class="e-help" style="margin:0 0 8px">A headshot works best. It fills the whole left side of the TV.</p>
         <div class="photo-pick">
           <img id="shPreview" alt="" hidden>
           <label class="btn ghost small" for="shPhoto" style="display:inline-flex;align-items:center">Choose a photo</label>
@@ -350,12 +363,12 @@ function renderTV(){
   $("totals").innerHTML = METRICS.map(m=>{
     const goal = n(g[m.k]);
     const pct = goal ? Math.min(100, Math.round(t[m.k]/goal*100)) : 0;
-    const cls = m.k==="closings" ? "gold" : (goal && t[m.k]>=goal ? "hot" : "");
+    const cls = m.k==="closings" ? "closings" : "";
     return `<div class="tile ${cls}"><div class="lbl">${m.label}</div><div class="num">${fmt(t[m.k])}</div>${goal?`<div class="bar"><i style="width:${pct}%"></i></div><div class="goal">${pct}% of ${fmt(goal)} goal</div>`:`<div class="goal">Team total</div>`}</div>`;
   }).join("");
 
   if (!agents.length){
-    $("leadWrap").innerHTML = `<div class="empty">${loaded ? "No agents on the board yet. Add the coaching group from the update screen." : "Loading the latest numbers…"}</div>`;
+    $("leadWrap").innerHTML = loaded ? `<div class="empty"><b>Agent leaderboard</b><span>Agents will appear here once they're added on the update screen.</span></div>` : `<div class="empty"><span>Loading the latest numbers…</span></div>`;
   } else {
     const rows = [...agents].sort((a,b)=> n(b.closings)-n(a.closings) || n(b.contracts)-n(a.contracts) || n(b.listings)-n(a.listings) || n(b.calls)-n(a.calls) || String(a.name).localeCompare(b.name));
     $("leadWrap").innerHTML = `<table class="lead"><thead><tr><th>Agent</th>${METRICS.map(m=>`<th>${m.short}</th>`).join("")}</tr></thead><tbody>${
@@ -364,51 +377,71 @@ function renderTV(){
       }</tr>`).join("")}</tbody></table>`;
   }
   fitBoard();
-  buildSlides();
+  buildScenes();
 }
 function fitBoard(){
-  const w=$("leadWrap"); let r=1; document.documentElement.style.setProperty("--row",r);
+  // start large so a small group fills the screen, then shrink until everyone fits
+  const w=$("leadWrap"); let r=1.8; document.documentElement.style.setProperty("--row",r);
   while(w.scrollHeight>w.clientHeight+1 && r>0.5){ r=Math.round((r-0.05)*100)/100; document.documentElement.style.setProperty("--row",r); }
 }
 window.addEventListener("resize",()=>fitBoard());
 
-/* ---------- slides ---------- */
-let slideIdx = 0, slideTimer = null, slideSig = "";
-function leaderSlide(){
-  if (!agents.length) return null;
-  const top = k => { const s=[...agents].sort((a,b)=>n(b[k])-n(a[k]))[0]; return n(s[k])>0 ? `${esc(s.name)} <em>${fmt(s[k])}</em>` : "—"; };
-  return `<div class="eyebrow red">This Week's Leaders</div><div class="leaders">
-    <div><b>Most calls</b><span>${top("calls")}</span></div>
-    <div><b>Most appointments</b><span>${top("appts")}</span></div>
-    <div><b>Most listings</b><span>${top("listings")}</span></div>
-    <div><b>Most closings</b><span>${top("closings")}</span></div></div>`;
+/* ---------- scene rotation ---------- */
+let sceneList = [{kind:"board"}], sceneIdx = 0, sceneTimer = null, sceneSig = "";
+const secs = () => Math.min(120, Math.max(4, n(settings.slideSeconds) || 10));
+function hasNumbers(){ return agents.some(a=>METRICS.some(m=>n(a[m.k])>0)); }
+function buildScenes(){
+  const list = [{kind:"board"}];
+  shouts.forEach(s=>list.push({kind:"shout", s}));
+  if (hasNumbers()) list.push({kind:"leaders"});
+  const sig = JSON.stringify(list.map(x=>x.kind==="shout" ? [x.s.id,x.s.name,x.s.type,x.s.detail,x.s.photo] : x.kind));
+  if (sig === sceneSig) return;
+  sceneSig = sig; sceneList = list;
+  if (sceneIdx >= list.length) sceneIdx = 0;
+  if (!sceneTimer) showScene(sceneIdx);
 }
-function shoutSlide(s){
+function celeHTML(s){
   const ty = TYPES[s.type] || TYPES.other;
-  const pic = s.photo ? `<img src="/api/photo?id=${esc(s.photo)}" alt="${esc(s.name)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'mono',textContent:'${esc(initials(s.name))}'}))">` : `<div class="mono">${esc(initials(s.name))}</div>`;
-  return `<div class="eyebrow ${ty.cls}">${ty.eyebrow}</div><div class="photo">${pic}</div><div class="who">${esc(s.name)}</div>${s.detail?`<div class="what">${esc(s.detail)}</div>`:""}<div class="congrats">Breakthrough 120 · Keller Williams</div>`;
+  const mono = `<div class="cele-mono">${esc(initials(s.name))}</div>`;
+  const pic = s.photo ? `${mono}<img src="/api/photo?id=${esc(s.photo)}" alt="${esc(s.name)}" onerror="this.remove()">` : mono;
+  return `<div class="cele"><div class="cele-photo">${pic}</div><div class="cele-copy">
+    <div class="cele-kicker">Congratulations</div>
+    <div class="cele-eyebrow">${ty.eyebrow}</div>
+    <div class="cele-name">${esc(s.name)}</div>
+    ${s.detail ? `<div class="cele-detail">${esc(s.detail)}</div>` : ""}
+    <div class="cele-foot"><span class="mark">BT120</span>Breakthrough 120 · Keller Williams</div>
+  </div></div>`;
 }
-function buildSlides(){
-  const list = shouts.map(s=>({html:shoutSlide(s), party: s.type==="closed"}));
-  const ls = leaderSlide(); if (ls) list.push({html:ls, party:false});
-  if (!list.length) list.push({html:`<div class="eyebrow">Congratulations Wall</div><div class="what" style="margin-top:calc(1.4*var(--u))">When someone closes, goes under contract or takes a new listing, their celebration slide will rotate here.</div>`, party:false});
-  const sig = JSON.stringify(list.map(l=>l.html));
-  if (sig === slideSig) return;
-  slideSig = sig;
-  $("slides").innerHTML = list.map((l,i)=>`<div class="slide" data-party="${l.party?1:0}">${l.html}</div>`).join("");
-  $("dots").innerHTML = list.length>1 ? list.map(()=>"<i></i>").join("") : "";
-  if (slideIdx >= list.length) slideIdx = 0;
-  showSlide(slideIdx, false);
-  clearInterval(slideTimer);
-  const secs = Math.min(120, Math.max(4, n(settings.slideSeconds) || 10));
-  if (list.length > 1) slideTimer = setInterval(()=>showSlide((slideIdx+1)%list.length, true), secs*1000);
+function leadersHTML(){
+  const top = (k,label) => {
+    const s = [...agents].sort((a,b)=>n(b[k])-n(a[k]))[0];
+    const has = s && n(s[k])>0;
+    return `<div class="lead-card"><b>${label}</b><div class="who">${has?esc(s.name):"—"}</div><div class="val">${has?fmt(s[k]):""}</div></div>`;
+  };
+  return `<div class="lead-scene"><h2><small>${esc(settings.week||"This week")}</small>This Week's Leaders</h2><div class="lead-grid">
+    ${top("calls","Most calls")}${top("appts","Most appointments")}${top("listings","Most listings")}${top("closings","Most closings")}</div></div>`;
 }
-function showSlide(i, party){
-  slideIdx = i;
-  document.querySelectorAll("#slides .slide").forEach((el,j)=>el.classList.toggle("on", j===i));
-  document.querySelectorAll("#dots i").forEach((el,j)=>el.classList.toggle("on", j===i));
-  const el = document.querySelectorAll("#slides .slide")[i];
-  if (party && el && el.dataset.party==="1") confetti();
+function showScene(i){
+  clearTimeout(sceneTimer); sceneTimer = null;
+  sceneIdx = i;
+  const sc = sceneList[i] || {kind:"board"};
+  const cele = $("sceneCele");
+  if (sc.kind === "board"){
+    $("sceneBoard").classList.add("on"); cele.classList.remove("on");
+    fitBoard();
+  } else {
+    cele.innerHTML = sc.kind === "shout" ? celeHTML(sc.s) : leadersHTML();
+    cele.classList.remove("enter"); void cele.offsetWidth; cele.classList.add("enter","on");
+    $("sceneBoard").classList.remove("on");
+    if (sc.kind === "shout" && sc.s.type === "closed") setTimeout(confetti, 500);
+  }
+  const d = sc.kind === "board" ? Math.max(15, secs()*2) : secs();
+  const bar = $("prog");
+  bar.style.transition = "none"; bar.style.width = "0";
+  if (sceneList.length > 1){
+    void bar.offsetWidth; bar.style.transition = `width ${d}s linear`; bar.style.width = "100%";
+    sceneTimer = setTimeout(()=>showScene((sceneIdx+1) % sceneList.length), d*1000);
+  }
 }
 
 /* ---------- confetti (one burst on "Just Closed" slides) ---------- */
@@ -417,13 +450,13 @@ function confetti(){
   if (reduce) return;
   const c = $("confetti"), ctx = c.getContext("2d");
   const r = c.getBoundingClientRect(); c.width = r.width; c.height = r.height;
-  const colors = ["#f26b1d","#111111","#ffffff","#d8520a"];
-  const ps = Array.from({length:120},()=>({x:Math.random()*c.width, y:-20-Math.random()*c.height*.5, vx:(Math.random()-.5)*2, vy:2+Math.random()*3, s:5+Math.random()*7, r:Math.random()*6, vr:(Math.random()-.5)*.3, col:colors[Math.floor(Math.random()*colors.length)]}));
+  const colors = ["#ffffff","#111111","#ffc21a","#d8520a"];
+  const ps = Array.from({length:220},()=>({x:Math.random()*c.width, y:-20-Math.random()*c.height*.5, vx:(Math.random()-.5)*2, vy:3+Math.random()*4, s:10+Math.random()*12, r:Math.random()*6, vr:(Math.random()-.5)*.3, col:colors[Math.floor(Math.random()*colors.length)]}));
   let f = 0;
   (function frame(){
     ctx.clearRect(0,0,c.width,c.height);
     ps.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.r+=p.vr; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r); ctx.fillStyle=p.col; ctx.fillRect(-p.s/2,-p.s/4,p.s,p.s/2); ctx.restore(); });
-    if (++f < 240) requestAnimationFrame(frame); else ctx.clearRect(0,0,c.width,c.height);
+    if (++f < 300) requestAnimationFrame(frame); else ctx.clearRect(0,0,c.width,c.height);
   })();
 }
 
@@ -550,10 +583,10 @@ async function shrink(file){
   // resize big phone photos so the TV loads them fast
   try {
     const bmp = await createImageBitmap(file);
-    const max = 1200, sc = Math.min(1, max/Math.max(bmp.width,bmp.height));
+    const max = 1800, sc = Math.min(1, max/Math.max(bmp.width,bmp.height));
     const c = document.createElement("canvas"); c.width=Math.round(bmp.width*sc); c.height=Math.round(bmp.height*sc);
     c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
-    return await new Promise(r=>c.toBlob(b=>r(b||file),"image/jpeg",.85));
+    return await new Promise(r=>c.toBlob(b=>r(b||file),"image/jpeg",.88));
   } catch(e){ return file; }
 }
 
