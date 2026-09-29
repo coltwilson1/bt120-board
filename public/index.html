@@ -316,7 +316,7 @@ const METRICS = [
   {k:"calls", label:"Calls Made", short:"Calls"},
   {k:"appts", label:"Appointments", short:"Appts"},
   {k:"listings", label:"Listings", short:"Listings"},
-  {k:"contracts", label:"Under Contract", short:"Contract"},
+  {k:"contracts", label:"Under Contract", short:"Contract", col:"Under Contract"},
   {k:"closings", label:"Closings", short:"Closings"},
 ];
 const TYPES = {
@@ -378,14 +378,14 @@ function renderTV(){
     const goal = n(g[m.k]);
     const pct = goal ? Math.min(100, Math.round(t[m.k]/goal*100)) : 0;
     const cls = m.k==="closings" ? "closings" : "";
-    return `<div class="tile ${cls}"><div class="lbl">${m.label}</div><div class="num">${fmt(t[m.k])}</div>${goal?`<div class="bar"><i style="width:${pct}%"></i></div><div class="goal">${pct}% of ${fmt(goal)} goal</div>`:`<div class="goal">Team total</div>`}</div>`;
+    return `<div class="tile ${cls}"><div class="lbl">${m.label}</div><div class="num">${fmt(t[m.k])}</div>${goal?`<div class="bar"><i style="width:${pct}%"></i></div><div class="goal">${pct}% of ${fmt(goal)} goal</div>`:`<div class="goal">Total</div>`}</div>`;
   }).join("");
 
   if (!agents.length){
     $("leadWrap").innerHTML = loaded ? `<div class="empty"><b>Agent leaderboard</b><span>Agents will appear here once they're added on the update screen.</span></div>` : `<div class="empty"><span>Loading the latest numbers…</span></div>`;
   } else {
     const rows = [...agents].sort((a,b)=> n(b.closings)-n(a.closings) || n(b.contracts)-n(a.contracts) || n(b.listings)-n(a.listings) || n(b.calls)-n(a.calls) || String(a.name).localeCompare(b.name));
-    $("leadWrap").innerHTML = `<table class="lead"><thead><tr><th>Agent</th>${METRICS.map(m=>`<th>${m.short}</th>`).join("")}</tr></thead><tbody>${
+    $("leadWrap").innerHTML = `<table class="lead"><thead><tr><th>Agent</th>${METRICS.map(m=>`<th>${m.col||m.short}</th>`).join("")}</tr></thead><tbody>${
       rows.map((a,i)=>`<tr class="${i===0&&n(a.closings)+n(a.contracts)>0?"first":""}"><td class="name"><span class="rk">${i+1}</span>${esc(a.name)}</td>${
         METRICS.map(m=>`<td class="${m.k==="calls"?"":"big"} ${n(a[m.k])===0?"zero":""} ${m.k==="closings"&&n(a[m.k])>0?"closings":""}">${fmt(a[m.k])}</td>`).join("")
       }</tr>`).join("")}</tbody></table>`;
